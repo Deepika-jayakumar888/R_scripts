@@ -24,8 +24,6 @@ go_bp_up <- enrichGO(gene = gene_entrez,
                      minGSSize = 3,
                      maxGSSize = 900,
                      readable = TRUE)
-go_bp_up <- setReadable(go_bp_up, "org.Hs.eg.db", "ENTREZID")
-
 
 go_mf_up <- enrichGO(gene = gene_entrez,
                      OrgDb = org.Hs.eg.db,
@@ -36,8 +34,6 @@ go_mf_up <- enrichGO(gene = gene_entrez,
                      minGSSize = 3,
                      maxGSSize = 900,
                      readable = TRUE)
-go_mf_up <- setReadable(go_mf_up, "org.Hs.eg.db", "ENTREZID")
-
 
 go_cc_up <- enrichGO(gene = gene_entrez,
                      OrgDb = org.Hs.eg.db,
@@ -48,7 +44,6 @@ go_cc_up <- enrichGO(gene = gene_entrez,
                      minGSSize = 3,
                      maxGSSize = 900,
                      readable = TRUE)
-go_cc_up <- setReadable(go_cc_up, "org.Hs.eg.db", "ENTREZID")
 
 reactome_enrich_up <- enrichPathway(gene = gene_entrez, 
                                     organism = "human", 
@@ -70,53 +65,21 @@ sheets <- list(
 write_xlsx(sheets, "enrched_results.xlsx")
 #############################
 
+library(DOSE)
 
-go_bp_df <- as.data.frame(go_bp_up@result)
-go_mf_df <- as.data.frame(go_mf_up@result)
-go_cc_df <- as.data.frame(go_cc_up@result)
-reactome_df <- as.data.frame(reactome_enrich_up@result)
+dot_plot_bp<-dotplot(go_bp_up, showCategory=10,orderBy = "pvalue",color = "pvalue", title = "GO:BP") 
+dot_plot_mf<-dotplot(go_mf_up, showCategory=10,orderBy = "pvalue",color = "pvalue", title = "GO:MF") 
+dot_plot_cc<-dotplot(go_cc_up, showCategory=10,orderBy = "pvalue",color = "pvalue", title = "GO:CC")
+dot_plot_r<-dotplot(reactome_enrich_up, showCategory=10,orderBy = "pvalue",color = "pvalue", title= "Reactome") 
 
-go_bp_df$Regulation <- "GO:BP"
-go_mf_df$Regulation <- "GO:MF"
-go_cc_df$Regulation <- "GO:CC"
-reactome_df$Regulation <- "Reactome"
+library(gridExtra)
+library(grid)
 
-reactome_df$FoldEnrichment <- 0
-reactome_df$zScore <- 0
-reactome_df$RichFactor <- 0
+combined_plot <- grid.arrange(dot_plot_bp,dot_plot_cc, dot_plot_mf, dot_plot_r, 
+                              top = textGrob("Functional Enrichment Analysis  of Ugregulated genes(Group A vs.  Group B)",gp=gpar(fontsize=20)),
+                              ncol = 2) 
 
-
-
-combined_df <- rbind(go_bp_df,go_cc_df, reactome_df,go_mf_df)
-unique(combined_df$Regulation)
-
-top10_combined_df <- combined_df %>%
-  filter(pvalue <= 0.05) %>% 
-  group_by(Regulation) %>%
-  arrange(pvalue) %>%
-  slice_head(n = 10) %>%
-  ungroup()
-
-
-pdf("dotplot.pdf", width = 14, height = 8)
-dotplot_combined <- ggplot(top10_combined_df, aes(x = Count, y = reorder(Description, Count), color = pvalue)) +
-  geom_point(aes(size = Count)) +
-  scale_color_gradient(low = "red", high = "blue") +
-  facet_wrap(~ Regulation, scales = "free_y",ncol = 2, nrow = 2) +
-  theme_minimal() +
-  labs(title = "Functional Enrichment Analysis of  ",
-       x = "Gene Count",
-       y = "GO Term")+
-  theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    axis.title.x = element_text(face = "bold"),
-    axis.title.y = element_text(face = "bold"),
-    axis.text.x = element_text(face = "bold"),
-    axis.text.y = element_text(face = "bold"), 
-    legend.title = element_text(face = "bold")
-  )
-
-print(dotplot_combined)
-
-dev.off()
+ggsave(filename = "Dotplot_upregulated_genes", plot = combined_plot, 
+       device = "pdf", 
+       width = 18, height = 18)
 
